@@ -56,9 +56,11 @@ Functions:
 
 
 __all__ = ['depend_base', 'depend_value', 'depend_array', 'synchronizer',
-           'dobject', 'dget', 'dset', 'depstrip', 'depcopy', 'deppipe']
+           'dobject', 'dget', 'dset', 'depstrip', 'depcopy', 'deppipe',
+           'depend_setup']
 
 
+from contextlib import contextmanager
 import numpy as np
 import weakref
 from ipi.utils.messages import verbosity, warning
@@ -758,18 +760,37 @@ def depcopy(objfrom, memberfrom, objto, memberto):
         dto._bval = dfrom._bval
 
 
+def set_dsetup(obj, dsetup):
+    """Recursively sets _dsetup of the depend object.
+
+    Args:
+        - dsetup: The bool to be set.
+    """
+    obj._dsetup = dsetup
+    for item in obj._dependants:
+        set_dsetup(item, dsetup)
+
+
+@contextmanager
+def depend_setup(obj):
+    obj._dsetup = True
+    yield
+    obj._dsetup = False
+
+
 class dobject(object):
     """Class that allows to access the value of member depend objects directly, without
        calling getter and setter functions explicitly.
        Use .dsetup() to switch off the direct access feature, and modify the internals
        of depend member objects, and .daccess() to switch it on again."""
 
+    _dsetup = False
+
     def __new__(cls, *args, **kwds):
         """ Initialize the object using __new__, because we do not want 
         to impose to derived classes to call the super __init__ """ 
                
         obj = object.__new__(cls)
-        obj._dsetup = False
         return obj
         
     def dsetup(self):
