@@ -787,18 +787,12 @@ class dobject(object):
     _dsetup = False
 
     def __new__(cls, *args, **kwds):
-        """ Initialize the object using __new__, because we do not want 
-        to impose to derived classes to call the super __init__ """ 
-               
+        """ Initialize the object using __new__, because we do not want
+        to impose to derived classes to call the super __init__ """
+
         obj = object.__new__(cls)
         return obj
-        
-    def dsetup(self):
-        self._dsetup = True
-    
-    def daccess(self):
-        self._dsetup = False
-    
+
     def __getattribute__(self, name):
         """Overrides standard __getattribute__().
 
