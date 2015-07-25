@@ -26,7 +26,7 @@ Compile the driver code
 
 ::
 
-  $ cd driver
+  $ cd drivers
   $ make
   $ cd ..
 
@@ -51,8 +51,8 @@ The monitoring can be interrupted with CTRL+C when the run has finished (5000 st
 Run the automatic test suite
 ----------------------------
 
-The automatic test suite can be run with the python package `nose` from the
-root directory of the i-pi package.
+The automatic test suite can be run with the python package `nose` (if
+installed) from within the root directory of the i-pi package.
 
 ::
 
