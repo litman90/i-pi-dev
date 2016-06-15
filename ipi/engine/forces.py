@@ -259,8 +259,6 @@ class ForceComponent(dobject):
       _forces: A list of the forcefield objects for all the replicas.
       weight: A float that will be used to weight the contribution of this
          forcefield to the total force.
-      mts_weights: A float that will be used to weight the contribution of this
-         forcefield to the total force.
       ffield: A model to be used to create the forcefield objects for all
          the replicas of the system.
 
@@ -316,6 +314,7 @@ class ForceComponent(dobject):
          fflist: A list of forcefield objects to use to calculate the potential,
             forces and virial for each replica.
       """
+
       # stores a copy of the number of atoms and of beads
       self.natoms = beads.natoms
       if (self.nbeads != beads.nbeads):
@@ -607,33 +606,13 @@ class Forces(dobject):
       nforce.bind(nbeads, ncell, self.fcomp, self.ff)
       return nforce
 
-   def run(self):
-      """Makes the socket start looking for driver codes.
-
-      Tells the interface code to start the thread that looks for
-      connection from the driver codes in a loop. Until this point no
-      jobs can be queued.
-      """
-
-      for ff in self.mforces:
-         ff.run()
-
-   def stop(self):
-      """Makes the socket stop looking for driver codes.
-
-      Tells the interface code to stop the thread that looks for
-      connection from the driver codes in a loop. After this point no
-      jobs can be queued.
-      """
-
-      for ff in self.mforces:
-         ff.stop()
 
    def queue(self):
       """Submits all the required force calculations to the forcefields."""
 
       for ff in self.mforces:
-         ff.queue()
+         if ff.weight > 0: # do not compute forces which have zero weight 
+            ff.queue()
 
    def get_vir(self):
       """Sums the virial of each forcefield.
@@ -649,18 +628,32 @@ class Forces(dobject):
          vir += v
       return vir
 
-   def pots_component(self, index):
-      return self.mforces[index].weight*self.mrpc[index].b2tob1(self.mforces[index].pots)
-
-   def forces_component(self, index):
-      return self.mforces[index].weight*self.mrpc[index].b2tob1(depstrip(self.mforces[index].f))
-
+   def pots_component(self, index, weighted=True):   
+      # fetches just one of the potential components
+      if weighted:
+         if self.mforces[index].weight > 0:
+            return self.mforces[index].weight*self.mrpc[index].b2tob1(self.mforces[index].pots)
+         else:
+            return 0
+      else:
+         return self.mrpc[index].b2tob1(self.mforces[index].pots)
+         
+   def forces_component(self, index, weighted=True):
+      # fetches just one of the potential components
+      if weighted:
+         if self.mforces[index].weight > 0:
+            return self.mforces[index].weight*self.mrpc[index].b2tob1(depstrip(self.mforces[index].f))
+         else:
+            return np.zeros((self.nbeads,self.natoms*3),float)
+      else:
+         return self.mrpc[index].b2tob1(depstrip(self.mforces[index].f))
+         
    def forces_mts(self, level):
       """ Fetches ONLY the forces associated with a given MTS level."""
 
       fk = np.zeros((self.nbeads,3*self.natoms))
       for index in range(len(self.mforces)):
-          if len(self.mforces[index].mts_weights) > level and self.mforces[index].mts_weights[level] != 0:
+         if len(self.mforces[index].mts_weights) > level and self.mforces[index].mts_weights[level] != 0  and self.mforces[index].weight > 0:
               fk += self.mforces[index].weight*self.mforces[index].mts_weights[level]*self.mrpc[index].b2tob1(depstrip(self.mforces[index].f))
       return fk
 
@@ -672,7 +665,8 @@ class Forces(dobject):
       for k in range(self.nforces):
          # "expand" to the total number of beads the forces from the
          #contracted one
-         rf += self.mforces[k].weight*self.mforces[k].mts_weights.sum()*self.mrpc[k].b2tob1(depstrip(self.mforces[k].f))
+         if self.mforces[k].weight > 0:
+            rf += self.mforces[k].weight*self.mrpc[k].b2tob1(depstrip(self.mforces[k].f))
       return rf
 
    def pot_combine(self):
@@ -683,7 +677,8 @@ class Forces(dobject):
       for k in range(self.nforces):
          # "expand" to the total number of beads the potentials from the
          #contracted one
-         rp += self.mforces[k].weight*self.mforces[k].mts_weights.sum()*self.mrpc[k].b2tob1(self.mforces[k].pots)
+         if self.mforces[k].weight > 0:
+            rp += self.mforces[k].weight*self.mrpc[k].b2tob1(self.mforces[k].pots)
       return rp
 
    def extra_combine(self):
@@ -704,12 +699,13 @@ class Forces(dobject):
       self.queue()
       rp = np.zeros((self.nbeads,3,3),float)
       for k in range(self.nforces):
-         virs = depstrip(self.mforces[k].virs)
-         # "expand" to the total number of beads the virials from the
-         #contracted one, element by element
-         for i in range(3):
-            for j in range(3):
-               rp[:,i,j] += self.mforces[k].weight*self.mforces[k].mts_weights.sum()*self.mrpc[k].b2tob1(virs[:,i,j])
+         if self.mforces[k].weight > 0:
+            virs = depstrip(self.mforces[k].virs)
+            # "expand" to the total number of beads the virials from the
+            #contracted one, element by element
+            for i in range(3):
+               for j in range(3):
+                  rp[:,i,j] += self.mforces[k].weight*self.mrpc[k].b2tob1(virs[:,i,j])
       return rp
       
    def sccalc(self):
