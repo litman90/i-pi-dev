@@ -30,7 +30,7 @@ from ipi.utils.softexit import softexit
 from ipi.utils.mintools import min_brent, min_approx, BFGS, L_BFGS, L_BFGS_nls
 from ipi.utils.messages import verbosity, warning, info
 
-class Instanton(GeopMover):
+class Instanton(GeopMover, DynMatrixMover):
     """Dynamic matrix calculation routine by finite difference.
     """
 # CHANGE THESE KEYWORDS TO BE CONSISTENT WITH GEOPMOVER
